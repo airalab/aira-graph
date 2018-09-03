@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+
+from ipfsapi import connect 
+from time import sleep
+import sys
+
+if __name__ == '__main__':
+    c = connect()
+    stat = { 'id': c.id() }
+    while True:
+        stat['peers'] = c.pubsub_peers(sys.argv[1])['Strings']
+        stat_hash = '/ipfs/{}'.format(c.add_json(stat))
+        name = c.name_publish(stat_hash)['Name']
+        print('Published to /ipns/{}'.format(name))
+        c.pubsub_pub('graph.airalab.eth', '{}\r\n'.format(name))
+        sleep(5)
