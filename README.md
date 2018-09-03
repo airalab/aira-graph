@@ -11,3 +11,11 @@ Client scenario
 1. collect IPNS ids from PubSub channel
 2. periodically get graph data from IPNS
 3. visualize AIRA graph
+
+Build & run
+===========
+
+```bash
+$ nix-shell -I nixpkgs=/path/to/airapkgs
+$ aira-graph airalab.lighthouse.1.robonomics.eth
+```
