@@ -6,5 +6,5 @@ buildPythonApplication {
   pname = "aira-graph";
   version = "0.1";
   src = ./.;
-  propagatedBuildInputs = [ ipfsapi ];
+  propagatedBuildInputs = [ ipfsapi web3 ];
 }

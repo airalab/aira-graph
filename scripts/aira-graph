@@ -1,16 +1,52 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
+from eth_account.messages import defunct_hash_message
+from optparse import OptionParser
+from time import sleep, time
 from ipfsapi import connect 
-from time import sleep
+from web3.auto import w3
+from json import dumps
 import sys
 
+GRAPH_TOPIC = 'graph.1.robonomics.eth'
+
 if __name__ == '__main__':
-    c = connect()
-    stat = { 'id': c.id() }
-    while True:
-        stat['peers'] = c.pubsub_peers(sys.argv[1])['Strings']
-        stat_hash = '/ipfs/{}'.format(c.add_json(stat))
-        name = c.name_publish(stat_hash)['Name']
-        print('Published to /ipns/{}'.format(name))
-        c.pubsub_pub('graph.airalab.eth', '{}\r\n'.format(name))
-        sleep(5)
+    parser = OptionParser(usage="%prog [-k] [-w] [LIGHTHOUSE]", version="%prog 0.1")
+    parser.add_option("-a", "--ipfs-api-host",
+                      help="IPFS node API host [default: %default]", dest="host", default="localhost")
+    parser.add_option("-p", "--ipfs-api-port",
+                      help="IPFS node API port [default: %default]", dest="port", default=5001)
+    parser.add_option("-k", "--ethereum-key",
+                      help="Ethereum signing key", dest="key", default="")
+    parser.add_option("-w", "--ethereum-key-password",
+                      help="Ethereum signing key password file", dest="password", default="")
+
+    (options, args) = parser.parse_args()
+    if len(args) != 1:
+        parser.error("incorrect number of arguments")
+
+    private_key = {}
+    with open(options.key) as keyfile:
+        encrypted_key = keyfile.read()
+        with open(options.password) as passfile:
+            key_password = passfile.readline()[:-1]
+            private_key = w3.eth.account.decrypt(encrypted_key, key_password)
+
+    def sign(json):
+        msg = dumps(json)
+        message_hash = defunct_hash_message(text=msg)
+        signature = w3.eth.account.signHash(message_hash, private_key=private_key)['signature']
+        return "{}\n---\n{}".format(msg, w3.toHex(signature))
+
+    c = connect(options.host, options.port)
+    stat = { 'id': c.id()['ID'], 'addresses': c.id()['Addresses'], 'lighthouse': args[0] }
+    with c.pubsub_sub(args[0], discover=True) as sub:
+        with c.pubsub_sub(GRAPH_TOPIC, discover=True) as graph_sub:
+            while True:
+                stat['peers'] = c.pubsub_peers(args[0])['Strings']
+                stat['timestamp'] = int(time())
+                stat_hash = '/ipfs/{}'.format(c.add_str(sign(stat)))
+                name = c.name_publish(stat_hash)['Name']
+                print('Published to /ipns/{}'.format(name))
+                c.pubsub_pub(GRAPH_TOPIC, '{}\r\n'.format(name))
+                sleep(5)
