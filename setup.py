@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='aira-graph',
-      version='0.1',
+      version='0.2',
       description='Aira graph util',
       author='Alexander Krupenkin',
       author_email='mail@akru.me',

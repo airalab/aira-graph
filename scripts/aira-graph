@@ -8,10 +8,8 @@ from web3.auto import w3
 from json import dumps
 import sys
 
-GRAPH_TOPIC = 'graph.1.robonomics.eth'
-
 if __name__ == '__main__':
-    parser = OptionParser(usage="%prog [-k] [-w] [LIGHTHOUSE]", version="%prog 0.1")
+    parser = OptionParser(usage="%prog [-k] [-w] [GRAPH] [LIGHTHOUSE]", version="%prog 0.2")
     parser.add_option("-a", "--ipfs-api-host",
                       help="IPFS node API host [default: %default]", dest="host", default="localhost")
     parser.add_option("-p", "--ipfs-api-port",
@@ -22,7 +20,7 @@ if __name__ == '__main__':
                       help="Ethereum signing key password file", dest="password", default="")
 
     (options, args) = parser.parse_args()
-    if len(args) != 1:
+    if len(args) != 2:
         parser.error("incorrect number of arguments")
 
     private_key = {}
@@ -39,14 +37,16 @@ if __name__ == '__main__':
         return "{}\n---\n{}".format(msg, w3.toHex(signature))
 
     c = connect(options.host, options.port)
-    stat = { 'id': c.id()['ID'], 'addresses': c.id()['Addresses'], 'lighthouse': args[0] }
-    with c.pubsub_sub(args[0], discover=True) as sub:
-        with c.pubsub_sub(GRAPH_TOPIC, discover=True) as graph_sub:
+    graph_topic = args[0]
+    lighthouse_topic = args[1]
+    stat = { 'id': c.id()['ID'], 'addresses': c.id()['Addresses'], 'lighthouse': lighthouse_topic }
+    with c.pubsub_sub(lighthouse_topic, discover=True) as sub:
+        with c.pubsub_sub(graph_topic, discover=True) as graph_sub:
             while True:
-                stat['peers'] = c.pubsub_peers(args[0])['Strings']
+                stat['peers'] = c.pubsub_peers(lighthouse_topic)['Strings']
                 stat['timestamp'] = int(time())
                 stat_hash = '/ipfs/{}'.format(c.add_str(sign(stat)))
                 name = c.name_publish(stat_hash)['Name']
                 print('Published to /ipns/{}'.format(name))
-                c.pubsub_pub(GRAPH_TOPIC, '{}\r\n'.format(name))
+                c.pubsub_pub(graph_topic, '{}\r\n'.format(name))
                 sleep(5)
